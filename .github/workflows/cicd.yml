@@ -27,9 +27,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Trivy Installation
+      run: |
+        sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+        echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update -y
+        sudo apt-get install -y trivy
     
     - name: Trivy FS scan
       run: trivy fs --format table -o fs-report.json .
+      
     - name: Gitleaks installation
       run: sudo apt install gitleaks -y
   
@@ -63,14 +71,19 @@ jobs:
         distribution: 'temurin'
         cache: maven
     - name: Build Project
-      run: mvn package  
-
+      run: mvn package 
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-jar
+        path: target/*.jar 
+        
     - uses: actions/checkout@v4
       with:
         # Disabling shallow clones is recommended for improving the relevancy of reporting
         fetch-depth: 0
     - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action@v5.0.0
+      uses: SonarSource/sonarqube-scan-action@v5.0.0 # Ex: v4.1.0, See the latest version at https://github.com/marketplace/actions/official-sonarqube-scan
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
@@ -82,5 +95,7 @@ jobs:
         pollingTimeoutSec: 600
       env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }} #OPTIONAL
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+    
 
+    
